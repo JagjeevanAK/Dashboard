@@ -1,0 +1,79 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+jobs:
+  validate:
+    name: Validate PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.0.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check for changes
+        run: |
+          echo "Changed files:"
+          git diff --name-only origin/main...HEAD
+
+      - name: Run affected builds
+        run: pnpm run build --filter="...[origin/main]"
+
+      - name: Run affected tests
+        run: pnpm run test --filter="...[origin/main]"
+
+      - name: Run affected lints
+        run: pnpm run lint --filter="...[origin/main]"
+
+  size-check:
+    name: Bundle Size Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.0.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build for size analysis
+        run: pnpm run build
+
+      - name: Analyze bundle size
+        run: |
+          echo "Bundle size analysis:"
+          find apps/*/dist -name "*.js" -exec ls -lh {} \; || echo "No JS bundles found"
+          find apps/*/build -name "*.js" -exec ls -lh {} \; || echo "No build JS files found"
