@@ -15,5 +15,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      // Workaround for Node.js crypto.hash compatibility issues
+      external: [],
+    },
+  },
+  define: {
+    // Ensure proper Node.js globals
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom'],
   },
 })
